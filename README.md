@@ -15,7 +15,7 @@ gh-auth login
 
 Then, you can install the package using pip:
 ```bash
-pip install git+https://github.com/yourusername/ezbedrock.git
+pip install git+https://github.com/MohamedAlturfiSVG/ezbedrock.git
 ```
 
 ## Basic Usage
