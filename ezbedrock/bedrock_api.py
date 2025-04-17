@@ -1,6 +1,7 @@
 # ezbedrock/bedrock_api.py
 """
 A wrapper library for AWS Bedrock API to simplify model invocation and response handling.
+Using the unified Converse API to simplify cross-model interactions.
 """
 import boto3
 import json
@@ -8,97 +9,59 @@ from typing import Dict, Any, Optional, Union, Iterator
 
 
 class BedrockClientWrapper:
-	"""A wrapper for AWS Bedrock API client to simplify interactions."""
+    """A wrapper for AWS Bedrock API client to simplify interactions using the Converse API."""
 
-	def __init__(self, region_name: str = 'us-west-2', model_id: str = "anthropic.claude-v2"):
-		"""
+    def __init__(self, region_name: str = 'us-west-2', model_id: str = "anthropic.claude-v2"):
+        """
         Initialize a Bedrock client wrapper.
 
         Args:
-            region_name: AWS region name
-            model_id: The ID of the model to invoke. Defaults to Claude 3.5 V2
+                region_name: AWS region name
+                model_id: The ID of the model to invoke. Defaults to Claude V2
         """
-		self.client = boto3.client('bedrock-runtime', region_name=region_name)
-		self.model_id = model_id
+        self.client = boto3.client('bedrock-runtime', region_name=region_name)
+        self.model_id = model_id
 
-	def invoke_model(self, prompt: str, **kwargs) -> Dict[str, Any]:
-		"""
-        Invoke a Bedrock model with a prompt and return the complete response.
+    def invoke_model(self, prompt: str, **kwargs) -> str:
+        """
+        Invoke a Bedrock model with a prompt and return the complete response using Converse API.
 
         Args:
-            prompt: The prompt to send to the model
-            **kwargs: Additional parameters for the model
+                prompt: The prompt to send to the model
+                **kwargs: Additional parameters for the model
 
         Returns:
-            The model's response as a dictionary
+                The model's response text
         """
-		body = self._prepare_request_body(self.model_id, prompt, **kwargs)
+        # Prepare the messages with user input
+        messages = [{"role": "user", "content": [{"text": prompt}]}]
 
-		response = self.client.invoke_model(
-				modelId=self.model_id,
-				body=json.dumps(body)
-		)
+        # Create the request body
+        request_body = {"messages": messages, "modelId": self.model_id}
 
-		return self._parse_response(response)
+        # Add inference parameters if specified
+        if kwargs:
+            inference_params = {}
 
-	def invoke_model_with_streaming(self, prompt: str, **kwargs) -> Iterator[Dict[str, Any]]:
-		"""
-        Invoke a Bedrock model with streaming response.
+            # Map common parameters
+            if 'max_tokens' in kwargs:
+                inference_params['maxTokens'] = kwargs.pop('max_tokens')
 
-        Args:
-            prompt: The prompt to send to the model
-            **kwargs: Additional parameters for the model
+            # Add any remaining parameters directly
+            for key, value in kwargs.items():
+                # Convert snake_case to camelCase
+                camel_key = ''.join([key.split('_')[0]] + [word.capitalize() for word in key.split('_')[1:]])
+                inference_params[camel_key] = value
 
-        Returns:
-            An iterator of response chunks
-        """
-		body = self._prepare_request_body(self.model_id, prompt, **kwargs)
+            if inference_params:
+                request_body['inferenceConfig'] = inference_params
 
-		response = self.client.invoke_model_with_response_stream(
-				modelId=self.model_id,
-				body=json.dumps(body)
-		)
+        # Make the API call
+        response = self.client.converse(**request_body)
 
-		stream = response.get('body')
-		if not stream:
-			return
+        # Parse and return the text response
+        if 'output' in response and 'message' in response['output']:
+            for content_item in response['output']['message']['content']:
+                return content_item['text']
 
-		for event in stream:
-			chunk = event.get('chunk')
-			if chunk:
-				yield json.loads(chunk.get('bytes').decode())
-
-	def _prepare_request_body(self, model_id: str, prompt: str, **kwargs) -> Dict[str, Any]:
-		"""Prepare the request body based on the model type."""
-		# Default parameters
-		default_params = {
-			'max_tokens_to_sample': kwargs.get('max_tokens', 4000),
-		}
-
-		# Model-specific formatting
-		if model_id.startswith('anthropic.claude'):
-			# Claude models use a specific prompt format
-			formatted_prompt = f"\n\nHuman: {prompt}\n\nAssistant:"
-			body = {
-				'prompt': formatted_prompt,
-				**default_params
-			}
-		else:
-			# Generic case for other models
-			body = {
-				'prompt': prompt,
-				**default_params
-			}
-
-		# Add any other kwargs
-		for key, value in kwargs.items():
-			if key != 'max_tokens':  # We've already handled this
-				body[key] = value
-
-		return body
-
-	def _parse_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
-		"""Parse the response from the model."""
-		response_body = json.loads(response.get('body').read())
-		response = response_body.get('completion', [{}])
-		return response
+        return ""
