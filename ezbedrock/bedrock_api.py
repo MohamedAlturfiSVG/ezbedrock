@@ -14,60 +14,56 @@ T = TypeVar('T', bound=BaseModel)
 
 
 class BedrockClientWrapper:
-    """A wrapper for AWS Bedrock API client to simplify interactions using the Converse API."""
+    """A wrapper for an AWS Bedrock API client to simplify interactions using the Converse API."""
 
-    def __init__(self, model_id: str = "anthropic.claude-v2", region_name: str = 'us-west-2'):
+    def __init__(self, model_id: str = "anthropic.claude-v2", region_name: str = 'us-west-2', **default_params):
         """
         Initialize a Bedrock client wrapper.
 
         Args:
             model_id: The ID of the model to invoke. Defaults to Claude V2
             region_name: AWS region name
-
+            **default_params: Default parameters to use for all model invocations (temperature, max_tokens, etc.)
         """
         self.client = boto3.client('bedrock-runtime', region_name=region_name)
         self.model_id = model_id
+        self.default_params = default_params
 
     def invoke_model(
-        self, prompt: str, response_model: Optional[Type[T]] = None, structured_output: bool = False, **kwargs
+        self,
+        prompt: str,
+        response_model: Optional[Type[T]] = None,
+        structured_output: bool = False,
+        system_prompt: Optional[str] = None,
+        **kwargs,
     ) -> Union[str, T, Dict[str, Any]]:
-        """
-        Invoke a Bedrock model with a prompt and return the complete response using Converse API.
+        # Merge default params with call-specific kwargs
+        params = {**self.default_params}
+        params.update(kwargs)  # Override defaults with call-specific params
 
-        Args:
-            prompt: The prompt to send to the model
-            response_model: Optional Pydantic model to structure and validate the response
-            structured_output: If True, forces JSON output even without a response_model
-            **kwargs: Additional parameters for the model
-
-        Returns:
-                Either a string response, validated Pydantic model instance, or dictionary
-        """
-        # Prepare the prompt with schema instructions if needed
+        # Rest of the method stays the same, but use params instead of kwargs
         enhanced_prompt = self._prepare_prompt(prompt, response_model, structured_output)
-
-        # Create request body
-        request_body = self._prepare_request_body(enhanced_prompt, **kwargs)
-
-        # Make API call and get text response
+        request_body = self._prepare_request_body(enhanced_prompt, system_prompt=system_prompt, **params)
         text_response = self._make_api_call(request_body)
 
-        # Parse and validate response if structured output is requested
         if response_model or structured_output:
             return self._parse_structured_response(text_response, response_model)
 
         return text_response
 
-    def create_conversation(self):
+    def create_conversation(self, system_prompt: Optional[str] = None):
         """
         Create a new conversation that maintains history.
+
+        Args:
+            system_prompt: Optional system instruction for the model
 
         Returns:
             A Conversation object linked to this client
         """
         from .conversation import Conversation
 
-        return Conversation(self)
+        return Conversation(self, system_prompt=system_prompt)
 
     def _prepare_prompt(self, prompt: str, response_model: Optional[Type[T]], structured_output: bool) -> str:
         """Enhance the prompt with schema instructions if needed."""
@@ -90,10 +86,19 @@ class BedrockClientWrapper:
             # Generic JSON instruction
             return f"{prompt}\n\n" f"Please respond with a valid JSON object and nothing else."
 
-    def _prepare_request_body(self, prompt: str, **kwargs) -> Dict[str, Any]:
+    def _prepare_request_body(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> Dict[str, Any]:
         """Create the request body with messages and inference parameters."""
-        # Prepare messages
-        messages = [{"role": "user", "content": [{"text": prompt}]}]
+        # Create the messages
+        messages = []
+
+        # For Claude models, include system instructions in the user message
+        if system_prompt:
+            # Format the prompt to include system instructions
+            formatted_prompt = f"<instructions>\n{system_prompt}\n</instructions>\n\n{prompt}"
+            messages.append({"role": "user", "content": [{"text": formatted_prompt}]})
+        else:
+            # Regular user message
+            messages.append({"role": "user", "content": [{"text": prompt}]})
 
         # Create the request body
         request_body = {"messages": messages, "modelId": self.model_id}
@@ -141,7 +146,7 @@ class BedrockClientWrapper:
             json_str = self._extract_json(text_response)
             json_data = json.loads(json_str)
 
-            # Return validated model if provided
+            # Return a validated model if provided
             if response_model:
                 return response_model(**json_data)
             return json_data

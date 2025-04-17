@@ -1,7 +1,13 @@
 from pydantic import BaseModel
 from ezbedrock import BedrockClientWrapper
 
-bedrock = BedrockClientWrapper(model_id="anthropic.claude-v2")
+# Create a client with default parameters
+bedrock = BedrockClientWrapper(
+    model_id="anthropic.claude-v2",
+    max_tokens=1000,  # Limits response length; set it high to avoid truncation issues
+    temperature=0.7,  # Controls randomness (higher = more creative)
+    top_p=0.95,  # Controls diversity of word choices
+)
 
 
 def invoke_model_example():
@@ -14,9 +20,8 @@ def invoke_model_with_kwargs_example():
     """Example showing how to use common kwargs with invoke_model"""
     response = bedrock.invoke_model(
         prompt="Write a concise paragraph about artificial intelligence",
-        max_tokens=250,  # Limits response length
-        temperature=0.7,  # Controls randomness (higher = more creative)
-        top_p=0.95,  # Controls diversity of word choices
+        system_prompt="You are an expert in artificial intelligence.",  # Optional system instruction
+        temperature=0.2,  # Override just temperature for this less creative task
     )
     return response
 
@@ -43,10 +48,12 @@ def invoke_model_generic_json_example():
 def conversation_example():
     """Example showing conversation with history"""
     # Create a conversation
-    conversation = bedrock.create_conversation()
+    conversation = bedrock.create_conversation(system_prompt="You are a helpful assistant.")
 
     # First message
-    response1 = conversation.send("What are three popular programming languages?")
+    response1 = conversation.send(
+        "What are the 3 most popular programming languauges?", temperature=0.5
+    )  # Override temperature just for this message
     print("Response 1:", response1)
 
     # Follow-up that references previous context
