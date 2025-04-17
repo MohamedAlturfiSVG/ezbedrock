@@ -29,10 +29,6 @@ bedrock = BedrockClientWrapper(model_id="anthropic.claude-v2")
 # Simple text generation
 response = bedrock.invoke_model("Tell me a joke")
 print(response)
-
-# Create a conversation
-conversation = bedrock.create_conversation()
-response = conversation.send("What are the three most popular programming languages?")
 ```
 
 Refer to the examples.ipynb for more detailed usage and examples.
