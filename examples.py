@@ -40,6 +40,22 @@ def invoke_model_generic_json_example():
     return response
 
 
+def conversation_example():
+    """Example showing conversation with history"""
+    # Create a conversation
+    conversation = bedrock.create_conversation()
+
+    # First message
+    response1 = conversation.send("What are three popular programming languages?")
+    print("Response 1:", response1)
+
+    # Follow-up that references previous context
+    response2 = conversation.send("Why is the first one so popular?")
+    print("Response 2:", response2)
+
+    return conversation
+
+
 if __name__ == "__main__":
     print("Basic text example:")
     print(invoke_model_example())
@@ -56,3 +72,7 @@ if __name__ == "__main__":
 
     print("Generic JSON response:")
     print(invoke_model_generic_json_example())
+    print("\n" + "-" * 50 + "\n")
+
+    print("Conversation with history example:")
+    conversation_example()

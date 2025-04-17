@@ -58,6 +58,17 @@ class BedrockClientWrapper:
 
         return text_response
 
+    def create_conversation(self):
+        """
+        Create a new conversation that maintains history.
+
+        Returns:
+            A Conversation object linked to this client
+        """
+        from .conversation import Conversation
+
+        return Conversation(self)
+
     def _prepare_prompt(self, prompt: str, response_model: Optional[Type[T]], structured_output: bool) -> str:
         """Enhance the prompt with schema instructions if needed."""
         if not (response_model or structured_output):

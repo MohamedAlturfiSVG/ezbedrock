@@ -12,7 +12,8 @@ Example:
     response = bedrock.invoke_model("Tell me a joke")
 """
 
-from ezbedrock.bedrock_api import BedrockClientWrapper
+from .bedrock_api import BedrockClientWrapper
+from .conversation import Conversation
 
 __version__ = "0.1.0"
-__all__ = ["BedrockClientWrapper"]
+__all__ = ["BedrockClientWrapper", "Conversation"]
