@@ -2,6 +2,19 @@
 
 A simple wrapper for AWS Bedrock API that makes it easy to work with large language models.
 
+## Key Features
+
+- **Model Flexibility**: Easily switch between any AWS Bedrock model (Claude, Llama, etc.) and customize inference parameters like temperature and token limits
+  
+- **Simple Text Generation**: Get clean text responses with a single function call - no complex request formatting required
+  
+- **Structured JSON Output**: Request responses in JSON format for easy parsing and integration with your applications
+  
+- **Schema Validation**: Define custom Pydantic models to enforce response structure and automatically validate model outputs
+  
+- **Basic Conversation Management**: Create persistent conversations with automatic context handling that maintains conversation history without exceeding token limits
+
+
 ## Installation
 
 ### Install from GitHub
